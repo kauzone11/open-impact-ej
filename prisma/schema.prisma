@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Study {
+  id                String             @id @default(cuid())
+  eventName         String
+  city              String
+  state             String
+  startDate         DateTime
+  endDate           DateTime
+  eventType         String
+  eventSize         EventSize
+  expectedAudience  Int
+  notes             String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  responses         SurveyResponse[]
+}
+
+model SurveyResponse {
+  id                         String   @id @default(cuid())
+  studyId                    String
+  study                      Study    @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  isLocalResident            Boolean
+  originCity                 String
+  cameSpecificallyForEvent   Boolean
+  groupSize                  Int
+  foodSpend                  Float    @default(0)
+  transportSpend             Float    @default(0)
+  shoppingSpend              Float    @default(0)
+  lodgingSpend               Float    @default(0)
+  averageStayDays            Float    @default(1)
+  spendingScope              SpendingScope
+  rating                     Int
+  createdAt                  DateTime @default(now())
+
+  @@index([studyId])
+}
+
+enum EventSize {
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+enum SpendingScope {
+  INDIVIDUAL
+  GROUP
+}
