@@ -40,6 +40,8 @@ model SurveyResponse {
   transportSpend             Float    @default(0)
   shoppingSpend              Float    @default(0)
   lodgingSpend               Float    @default(0)
+  otherSpend                 Float    @default(0)
+  stayedOvernight            Boolean  @default(false)
   averageStayDays            Float    @default(1)
   spendingScope              SpendingScope
   rating                     Int

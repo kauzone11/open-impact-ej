@@ -1,4 +1,4 @@
-# Codex Open Source Application
+# Codex Open Source Program Application Notes
 
 Open Impact EJ is an open-source toolkit that helps junior enterprises, universities, extension projects, and local organizations run simple, transparent, and reproducible economic impact studies for small and medium-sized events.
 
@@ -23,6 +23,10 @@ The methodology should be inspectable, debated, tested, and adapted. Open-source
 - Review methodology changes through pull requests.
 - Add export formats and accessibility improvements.
 - Keep dependencies updated with documented release notes.
+
+## Security
+
+The MVP intentionally avoids CPF, mandatory phone numbers, mandatory respondent names, credentials, private datasets, and paid-service dependencies. Future deployments should review hosting, retention, and local privacy-law requirements before collecting real responses.
 
 ## Risks and safeguards
 

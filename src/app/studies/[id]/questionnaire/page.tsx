@@ -79,10 +79,21 @@ export default async function QuestionnairePage({ params }: { params: Promise<{ 
               Hospedagem (R$)
               <input name="lodgingSpend" type="number" min="0" step="0.01" defaultValue="0" className="rounded-md border border-slate-300 px-3 py-2" />
             </label>
+            <label className="grid gap-1 text-sm font-medium">
+              Outros itens (R$)
+              <input name="otherSpend" type="number" min="0" step="0.01" defaultValue="0" className="rounded-md border border-slate-300 px-3 py-2" />
+            </label>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <label className="grid gap-1 text-sm font-medium">
-              Permanencia media
+              Pernoite por causa do evento?
+              <select name="stayedOvernight" defaultValue="false" className="rounded-md border border-slate-300 px-3 py-2">
+                <option value="false">Nao</option>
+                <option value="true">Sim</option>
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-medium">
+              Dias de permanencia
               <input name="averageStayDays" type="number" min="0" step="0.5" defaultValue="1" className="rounded-md border border-slate-300 px-3 py-2" />
             </label>
             <label className="grid gap-1 text-sm font-medium">
@@ -92,6 +103,8 @@ export default async function QuestionnairePage({ params }: { params: Promise<{ 
                 <option value="GROUP">Grupo</option>
               </select>
             </label>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-1 text-sm font-medium">
               Avaliacao
               <select name="rating" defaultValue="4" className="rounded-md border border-slate-300 px-3 py-2">

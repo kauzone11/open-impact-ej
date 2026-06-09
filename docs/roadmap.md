@@ -1,6 +1,6 @@
 # Roadmap
 
-## MVP
+## Phase 0: MVP small events
 
 - Event study registration.
 - Anonymous small-event questionnaire.
@@ -10,18 +10,23 @@
 - Tests for the small-event methodology.
 - Open-source governance documents.
 
-## Next
+## Phase 1: Reporting and quality
 
 - PDF export.
+- Additional tests.
 - Fictitious example datasets.
 - Better accessibility checks.
-- E2E tests.
-- Offline collection mode.
-- Multi-organization support.
+- Questionnaire improvements.
 
-## Future methodologies
+## Phase 2: New methodologies and collection modes
 
 - Sports events.
-- Fairs with exhibitors.
 - Medium-sized events.
 - Region-specific assumptions and documentation.
+- Offline collection mode.
+
+## Phase 3: Operations
+
+- Multi-organization support.
+- Administrative dashboard.
+- Advanced reports.

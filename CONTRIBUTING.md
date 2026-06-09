@@ -18,6 +18,14 @@ npm run lint
 npm run build
 ```
 
+## Branches and commits
+
+Create a focused branch from `main` and keep pull requests small enough to review. Use clear commit messages such as `Add sports event methodology draft` or `Fix group expense normalization`.
+
+## Pull requests
+
+Every pull request should describe the change, list tests run, and call out methodology impact. If a change affects formulas, questionnaire wording, or result interpretation, update docs and tests in the same pull request.
+
 ## Methodology changes
 
 Methodology changes need more scrutiny than normal UI changes. A pull request that changes calculations should include:

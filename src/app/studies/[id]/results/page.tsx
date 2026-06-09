@@ -25,10 +25,11 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
     transportSpend: Number(response.transportSpend),
     shoppingSpend: Number(response.shoppingSpend),
     lodgingSpend: Number(response.lodgingSpend),
+    otherSpend: Number(response.otherSpend),
     averageStayDays: Number(response.averageStayDays),
   }));
 
-  const calculation = calculateSmallEventImpact(responses);
+  const calculation = calculateSmallEventImpact(responses, study.expectedAudience);
 
   return (
     <AppShell>
@@ -60,9 +61,15 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <MetricCard label="Respostas" value={String(calculation.totalResponses)} detail={`${calculation.validResponses} validas`} />
           <MetricCard label="Gasto medio" value={formatCurrency(calculation.averageSpendPerPerson)} detail="por pessoa respondente" />
-          <MetricCard label="Impacto direto" value={formatCurrency(calculation.directImpactEstimate)} detail="estimativa conservadora" />
+          <MetricCard label="Impacto direto" value={formatCurrency(calculation.directImpactEstimate)} detail="publico ajustado por visitantes do evento" />
           <MetricCard label="Visitantes" value={String(calculation.visitorResponses)} detail={formatPercent(calculation.visitorShare)} />
-          <MetricCard label="Moradores locais" value={String(calculation.localResponses)} />
+          <MetricCard label="Visitantes atribuiveis" value={String(calculation.eventDrivenVisitorResponses)} detail={`${calculation.adjustedAudienceEstimate} pessoas ajustadas`} />
+        </div>
+
+        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+          O total observado da amostra foi {formatCurrency(calculation.observedSampleTotal)}. A estimativa de impacto
+          direto usa apenas visitantes que vieram principalmente por causa do evento, multiplicando o gasto medio desse
+          grupo pelo publico estimado ajustado. Impacto indireto e induzido nao sao calculados no MVP.
         </div>
 
         <div className="mt-6">

@@ -6,8 +6,13 @@ export type SmallEventCalculation = {
   validResponses: number;
   localResponses: number;
   visitorResponses: number;
+  eventDrivenVisitorResponses: number;
   visitorShare: number;
+  eventDrivenVisitorShare: number;
   averageSpendPerPerson: number;
+  averageSpendPerEventDrivenVisitor: number;
+  adjustedAudienceEstimate: number;
+  observedSampleTotal: number;
   directImpactEstimate: number;
   averageByCategory: Record<string, number>;
   totalByCategory: Record<string, number>;
@@ -26,7 +31,21 @@ function normalizeSpend(value: number, groupSize: number, scope: SmallEventRespo
   return value;
 }
 
-export function calculateSmallEventImpact(rawResponses: SmallEventResponseInput[]): SmallEventCalculation {
+function categorySpend(response: SmallEventResponseInput, categoryKey: string) {
+  if (categoryKey === "lodgingSpend" && response.isLocalResident && !response.stayedOvernight) {
+    return 0;
+  }
+
+  return response[categoryKey as keyof Pick<
+    SmallEventResponseInput,
+    "foodSpend" | "transportSpend" | "shoppingSpend" | "lodgingSpend" | "otherSpend"
+  >] as number;
+}
+
+export function calculateSmallEventImpact(
+  rawResponses: SmallEventResponseInput[],
+  expectedAudience = 0,
+): SmallEventCalculation {
   const validResponses = rawResponses
     .map((response) => smallEventResponseSchema.safeParse(response))
     .filter((result) => result.success)
@@ -36,26 +55,44 @@ export function calculateSmallEventImpact(rawResponses: SmallEventResponseInput[
   const origins = new Map<string, number>();
 
   let directImpactEstimate = 0;
+  let observedSampleTotal = 0;
+  let eventDrivenVisitorSpend = 0;
   let localResponses = 0;
   let visitorResponses = 0;
+  let eventDrivenVisitorResponses = 0;
 
   for (const response of validResponses) {
+    const isEventDrivenVisitor = !response.isLocalResident && response.cameSpecificallyForEvent;
+
     if (response.isLocalResident) {
       localResponses += 1;
     } else {
       visitorResponses += 1;
     }
 
+    if (isEventDrivenVisitor) {
+      eventDrivenVisitorResponses += 1;
+    }
+
     origins.set(response.originCity, (origins.get(response.originCity) ?? 0) + 1);
 
     for (const category of spendingCategories) {
-      const normalized = normalizeSpend(response[category.key], response.groupSize, response.spendingScope);
+      const normalized = normalizeSpend(categorySpend(response, category.key), response.groupSize, response.spendingScope);
       totals[category.key] += normalized;
-      directImpactEstimate += normalized;
+      observedSampleTotal += normalized;
+
+      if (isEventDrivenVisitor) {
+        eventDrivenVisitorSpend += normalized;
+      }
     }
   }
 
   const validCount = validResponses.length;
+  const eventDrivenVisitorShare = validCount > 0 ? eventDrivenVisitorResponses / validCount : 0;
+  const adjustedAudienceEstimate = Math.max(expectedAudience, 0) * eventDrivenVisitorShare;
+  const averageSpendPerEventDrivenVisitor =
+    eventDrivenVisitorResponses > 0 ? eventDrivenVisitorSpend / eventDrivenVisitorResponses : 0;
+  directImpactEstimate = averageSpendPerEventDrivenVisitor * adjustedAudienceEstimate;
   const averageByCategory = Object.fromEntries(
     spendingCategories.map((category) => [
       category.key,
@@ -68,8 +105,13 @@ export function calculateSmallEventImpact(rawResponses: SmallEventResponseInput[
     validResponses: validCount,
     localResponses,
     visitorResponses,
+    eventDrivenVisitorResponses,
     visitorShare: validCount > 0 ? roundCurrency(visitorResponses / validCount) : 0,
-    averageSpendPerPerson: validCount > 0 ? roundCurrency(directImpactEstimate / validCount) : 0,
+    eventDrivenVisitorShare: roundCurrency(eventDrivenVisitorShare),
+    averageSpendPerPerson: validCount > 0 ? roundCurrency(observedSampleTotal / validCount) : 0,
+    averageSpendPerEventDrivenVisitor: roundCurrency(averageSpendPerEventDrivenVisitor),
+    adjustedAudienceEstimate: Math.round(adjustedAudienceEstimate),
+    observedSampleTotal: roundCurrency(observedSampleTotal),
     directImpactEstimate: roundCurrency(directImpactEstimate),
     averageByCategory,
     totalByCategory: Object.fromEntries(
