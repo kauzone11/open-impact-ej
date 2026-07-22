@@ -1,62 +1,1122 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model Study {
-  id                String             @id @default(cuid())
-  eventName         String
-  city              String
-  state             String
-  startDate         DateTime
-  endDate           DateTime
-  eventType         String
-  eventSize         EventSize
-  expectedAudience  Int
-  notes             String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  responses         SurveyResponse[]
+model HubOrganization {
+  id                  String              @id @default(cuid())
+  name                String
+  hubName             String
+  slug                String              @unique
+  logoUrl             String?
+  timezone            String              @default("America/Sao_Paulo")
+  locale              String              @default("pt-BR")
+  currency            String              @default("BRL")
+  isActive            Boolean             @default(true)
+  version             Int                 @default(1)
+  publicName          String?
+  legalName           String?
+  document            String?
+  institutionalEmail  String?
+  phone               String?
+  website             String?
+  city                String?
+  state               String?
+  country             String              @default("BR")
+  type                HubOrganizationType @default(JUNIOR_ENTERPRISE)
+  responsibleMemberId String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  directorates           HubDirectorate[]
+  members                HubMember[]
+  memberInvitations      HubMemberInvitation[]
+  projects               HubProject[]
+  auditLogs              HubAuditLog[]
+  notifications          HubNotification[]
+  availabilityRules      HubAvailabilityRule[]
+  availabilityExceptions HubAvailabilityException[]
+  meetings               HubMeeting[]
+  meetingResponseEvents  HubMeetingResponseEvent[]
+  boards                 HubBoard[]
+  tasks                  HubTask[]
+  calendarEvents         HubCalendarEvent[]
+  availabilityPolls      HubAvailabilityPoll[]
+  accountsLastUsed       HubAccount[]               @relation("HubAccountLastOrganization")
+  responsibleMember      HubMember?                 @relation("HubResponsibleMember", fields: [responsibleMemberId], references: [id], onDelete: SetNull)
 }
 
-model SurveyResponse {
-  id                         String   @id @default(cuid())
-  studyId                    String
-  study                      Study    @relation(fields: [studyId], references: [id], onDelete: Cascade)
-  isLocalResident            Boolean
-  originCity                 String
-  cameSpecificallyForEvent   Boolean
-  groupSize                  Int
-  foodSpend                  Float    @default(0)
-  transportSpend             Float    @default(0)
-  shoppingSpend              Float    @default(0)
-  lodgingSpend               Float    @default(0)
-  otherSpend                 Float    @default(0)
-  stayedOvernight            Boolean  @default(false)
-  averageStayDays            Float    @default(1)
-  spendingScope              SpendingScope
-  rating                     Int
-  createdAt                  DateTime @default(now())
-
-  @@index([studyId])
+enum HubOrganizationType {
+  JUNIOR_ENTERPRISE
+  ASSOCIATION
+  FOUNDATION
+  COMPANY
+  PUBLIC_ORGANIZATION
+  OTHER
 }
 
-enum EventSize {
-  SMALL
-  MEDIUM
-  LARGE
+enum HubAccountStatus {
+  ACTIVE
+  DISABLED
 }
 
-enum SpendingScope {
-  INDIVIDUAL
-  GROUP
+model HubAccount {
+  id                 String           @id @default(cuid())
+  email              String
+  normalizedEmail    String           @unique
+  passwordHash       String
+  status             HubAccountStatus @default(ACTIVE)
+  mustChangePassword Boolean          @default(true)
+  sessionVersion     Int              @default(1)
+  lastOrganizationId String?
+  lastOrganization   HubOrganization? @relation("HubAccountLastOrganization", fields: [lastOrganizationId], references: [id], onDelete: SetNull)
+  memberships        HubMember[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([lastOrganizationId])
+}
+
+enum HubMemberInvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum HubInvitationDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  NOT_CONFIGURED
+}
+
+model HubMemberInvitation {
+  id                      String                      @id @default(cuid())
+  organizationId          String
+  organization            HubOrganization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  normalizedEmail         String
+  tokenHash               String                      @unique
+  status                  HubMemberInvitationStatus   @default(PENDING)
+  organizationPosition    HubOrganizationPosition
+  memberCategory          HubMemberCategory
+  directorateId           String?
+  directorate             HubDirectorate?             @relation(fields: [directorateId], references: [id], onDelete: SetNull)
+  appointAsDirector       Boolean                     @default(false)
+  invitedById             String
+  invitedBy               HubMember                   @relation("HubInvitationInviter", fields: [invitedById], references: [id], onDelete: Restrict)
+  existingInvitedMemberId String?
+  existingInvitedMember   HubMember?                  @relation("HubInvitationLegacyMember", fields: [existingInvitedMemberId], references: [id], onDelete: SetNull)
+  deliveryStatus          HubInvitationDeliveryStatus @default(PENDING)
+  deliveryAttempts        Int                         @default(0)
+  lastDeliveryAt          DateTime?
+  lastDeliveryError       String?
+  expiresAt               DateTime
+  acceptedAt              DateTime?
+  revokedAt               DateTime?
+  createdAt               DateTime                    @default(now())
+  updatedAt               DateTime                    @updatedAt
+  version                 Int                         @default(1)
+
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, normalizedEmail])
+  @@index([existingInvitedMemberId])
+}
+
+model HubDirectorate {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   HubOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name        String
+  slug        String
+  description String?
+  icon        String?
+  isActive    Boolean    @default(true)
+  archivedAt  DateTime?
+  version     Int        @default(1)
+  order       Int        @default(0)
+  directorId  String?
+  director    HubMember? @relation("HubDirectorateDirector", fields: [directorId], references: [id], onDelete: SetNull)
+
+  members           HubMember[]
+  memberInvitations HubMemberInvitation[]
+  meetings          HubMeeting[]
+  meetingLinks      HubMeetingDirectorate[]
+  boards            HubBoard[]
+  primaryProjects   HubProject[]            @relation("HubProjectPrimaryDirectorate")
+  projectLinks      HubProjectDirectorate[]
+  tasks             HubTask[]
+  calendarEvents    HubCalendarEvent[]
+  availabilityPolls HubAvailabilityPoll[]
+  financialEntries  HubFinancialEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([organizationId, archivedAt])
+  @@index([directorId])
+}
+
+model HubMember {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   HubOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  email                String
+  normalizedEmail      String?
+  name                 String
+  passwordHash         String
+  phone                String?
+  position             String?
+  organizationPosition HubOrganizationPosition @default(MEMBER)
+  memberCategory       HubMemberCategory       @default(MEMBER)
+  accountId            String?
+  account              HubAccount?             @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  isPrimary            Boolean                 @default(false)
+
+  role   HubRole         @default(MEMBER)
+  status HubMemberStatus @default(ACTIVE)
+
+  directorateId        String?
+  directorate          HubDirectorate?  @relation(fields: [directorateId], references: [id])
+  directedDirectorates HubDirectorate[] @relation("HubDirectorateDirector")
+
+  mustChangePassword Boolean   @default(true)
+  sessionVersion     Int       @default(1)
+  lastLoginAt        DateTime?
+
+  avatarUrl String?
+
+  managedProjects              HubProject[]                     @relation("HubProjectManager")
+  createdProjects              HubProject[]                     @relation("HubProjectCreator")
+  projectTeams                 HubProjectTeamMember[]
+  auditLogs                    HubAuditLog[]
+  receivedNotifications        HubNotification[]                @relation("HubNotificationRecipient")
+  actedNotifications           HubNotification[]                @relation("HubNotificationActor")
+  availabilityRules            HubAvailabilityRule[]
+  availabilityExceptions       HubAvailabilityException[]
+  createdMeetings              HubMeeting[]                     @relation("HubMeetingCreator")
+  cancelledMeetings            HubMeeting[]                     @relation("HubMeetingCanceller")
+  meetingParticipations        HubMeetingParticipant[]
+  meetingResponseEvents        HubMeetingResponseEvent[]
+  presentedAgendaItems         HubMeetingAgendaItem[]           @relation("HubAgendaPresenter")
+  createdDecisions             HubMeetingDecision[]             @relation("HubDecisionCreator")
+  createdBoards                HubBoard[]                       @relation("HubBoardCreator")
+  createdTasks                 HubTask[]                        @relation("HubTaskCreator")
+  taskAssignments              HubTaskAssignee[]
+  taskComments                 HubTaskComment[]
+  createdCalendarEvents        HubCalendarEvent[]               @relation("HubCalendarEventCreator")
+  createdAvailabilityPolls     HubAvailabilityPoll[]            @relation("HubAvailabilityPollCreator")
+  availabilityPollParticipants HubAvailabilityPollParticipant[]
+  availabilitySelections       HubAvailabilitySelection[]
+  responsibleFor               HubOrganization[]                @relation("HubResponsibleMember")
+  invitationsSent              HubMemberInvitation[]            @relation("HubInvitationInviter")
+  secureLegacyInvitations      HubMemberInvitation[]            @relation("HubInvitationLegacyMember")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, normalizedEmail])
+  @@index([organizationId])
+  @@index([organizationId, organizationPosition])
+  @@index([organizationId, memberCategory])
+  @@index([directorateId])
+  @@index([accountId])
+}
+
+enum HubRole {
+  SUPER_ADMIN
+  ADMIN
+  FINANCE
+  DIRECTOR
+  MEMBER
+  VIEWER
+}
+
+enum HubOrganizationPosition {
+  PRESIDENT
+  COUNSELOR
+  MEMBER
+}
+
+enum HubMemberCategory {
+  MEMBER
+  TRAINEE
+  ALUMNI
+}
+
+enum HubMemberStatus {
+  INVITED
+  ACTIVE
+  DISABLED
+  DELETED
+}
+
+model HubProject {
+  id             String          @id @default(cuid())
+  idempotencyKey String?         @unique
+  organizationId String
+  organization   HubOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  title        String
+  client       String?
+  description  String?
+  status       String    @default("DRAFT")
+  priority     String    @default("NORMAL")
+  startDate    DateTime? @db.Date
+  deadline     DateTime? @db.Date
+  progress     Int       @default(0)
+  nextDelivery String?
+  archivedAt   DateTime?
+  version      Int       @default(1)
+
+  primaryDirectorateId String?
+  primaryDirectorate   HubDirectorate? @relation("HubProjectPrimaryDirectorate", fields: [primaryDirectorateId], references: [id], onDelete: SetNull)
+  managerId            String?
+  manager              HubMember?      @relation("HubProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
+  createdById          String?
+  createdBy            HubMember?      @relation("HubProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  directorates     HubProjectDirectorate[]
+  teamMembers      HubProjectTeamMember[]
+  tasks            HubTask[]
+  milestones       HubProjectMilestone[]
+  calendarEvents   HubCalendarEvent[]
+  financialEntries HubFinancialEntry[]
+
+  cancelledAt     DateTime?
+  cancelledReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([organizationId, archivedAt, status])
+  @@index([primaryDirectorateId])
+  @@index([managerId])
+}
+
+model HubProjectDirectorate {
+  id            String         @id @default(cuid())
+  projectId     String
+  project       HubProject     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  directorateId String
+  directorate   HubDirectorate @relation(fields: [directorateId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+
+  @@unique([projectId, directorateId])
+  @@index([directorateId])
+}
+
+model HubProjectTeamMember {
+  id        String     @id @default(cuid())
+  projectId String
+  project   HubProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  memberId  String
+  member    HubMember  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@unique([projectId, memberId])
+  @@index([memberId])
+}
+
+model HubProjectMilestone {
+  id          String     @id @default(cuid())
+  projectId   String
+  project     HubProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dueAt       DateTime   @db.Date
+  completedAt DateTime?
+  version     Int        @default(1)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([projectId, dueAt])
+}
+
+model HubAuditLog {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   HubOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  action   String
+  entity   String
+  entityId String?
+  memberId String?
+  member   HubMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model HubNotification {
+  id                String          @id @default(cuid())
+  organizationId    String
+  organization      HubOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recipientMemberId String
+  recipientMember   HubMember       @relation("HubNotificationRecipient", fields: [recipientMemberId], references: [id], onDelete: Cascade)
+  actorMemberId     String?
+  actorMember       HubMember?      @relation("HubNotificationActor", fields: [actorMemberId], references: [id], onDelete: SetNull)
+  type              String
+  title             String
+  body              String
+  href              String
+  entityType        String
+  entityId          String
+  idempotencyKey    String
+  readAt            DateTime?
+  archivedAt        DateTime?
+  dismissedAt       DateTime?
+  deletedAt         DateTime?
+  version           Int             @default(1)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, recipientMemberId, readAt])
+  @@index([recipientMemberId, createdAt(sort: Desc)])
+  @@index([organizationId, createdAt(sort: Desc)])
+}
+
+enum HubAvailabilityExceptionType {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+model HubAvailabilityRule {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   HubOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberId       String
+  member         HubMember       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  weekday        Int
+  startMinute    Int
+  endMinute      Int
+  timezone       String
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organizationId, memberId])
+  @@index([memberId, weekday])
+}
+
+model HubAvailabilityException {
+  id             String                       @id @default(cuid())
+  organizationId String
+  organization   HubOrganization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberId       String
+  member         HubMember                    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  date           DateTime                     @db.Date
+  type           HubAvailabilityExceptionType
+  startMinute    Int?
+  endMinute      Int?
+  reason         String?
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+
+  @@index([organizationId, memberId])
+  @@index([memberId, date])
+}
+
+enum HubMeetingStatus {
+  DRAFT
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+enum HubMeetingParticipantStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  TENTATIVE
+  ATTENDED
+  ABSENT
+}
+
+enum HubMeetingInvitationSourceType {
+  CREATOR
+  ORGANIZATION
+  DIRECTORATE
+  DIRECT
+}
+
+model HubMeeting {
+  id               String                    @id @default(cuid())
+  organizationId   String
+  organization     HubOrganization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  directorateId    String?
+  organizationWide Boolean                   @default(false)
+  version          Int                       @default(1)
+  directorate      HubDirectorate?           @relation(fields: [directorateId], references: [id], onDelete: SetNull)
+  title            String
+  description      String?
+  status           HubMeetingStatus          @default(DRAFT)
+  startAt          DateTime
+  endAt            DateTime
+  timezone         String
+  location         String?
+  meetingUrl       String?
+  createdById      String
+  createdBy        HubMember                 @relation("HubMeetingCreator", fields: [createdById], references: [id])
+  cancelledAt      DateTime?
+  cancelledById    String?
+  cancelledBy      HubMember?                @relation("HubMeetingCanceller", fields: [cancelledById], references: [id])
+  cancelReason     String?
+  completedAt      DateTime?
+  minutes          String?
+  idempotencyKey   String
+  requestHash      String?
+  participants     HubMeetingParticipant[]
+  directorates     HubMeetingDirectorate[]
+  externalGuests   HubMeetingExternalGuest[]
+  responseEvents   HubMeetingResponseEvent[]
+  agendaItems      HubMeetingAgendaItem[]
+  decisions        HubMeetingDecision[]
+  sourceTasks      HubTask[]
+  calendarEvents   HubCalendarEvent[]
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, startAt])
+  @@index([directorateId, startAt])
+  @@index([createdById])
+}
+
+enum HubAvailabilityPollStatus {
+  OPEN
+  CLOSED
+  SCHEDULED
+  CANCELLED
+}
+
+model HubAvailabilityPoll {
+  id               String                           @id @default(cuid())
+  organizationId   String
+  organization     HubOrganization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  dates            DateTime[]                       @db.Date
+  startMinute      Int
+  endMinute        Int
+  slotMinutes      Int
+  timezone         String
+  responseDeadline DateTime?
+  directorateId    String?
+  directorate      HubDirectorate?                  @relation(fields: [directorateId], references: [id], onDelete: SetNull)
+  status           HubAvailabilityPollStatus        @default(OPEN)
+  createdById      String
+  createdBy        HubMember                        @relation("HubAvailabilityPollCreator", fields: [createdById], references: [id])
+  version          Int                              @default(1)
+  participants     HubAvailabilityPollParticipant[]
+  selections       HubAvailabilitySelection[]
+  createdAt        DateTime                         @default(now())
+  updatedAt        DateTime                         @updatedAt
+
+  @@index([organizationId, status])
+  @@index([directorateId])
+}
+
+model HubAvailabilityPollParticipant {
+  id        String              @id @default(cuid())
+  pollId    String
+  poll      HubAvailabilityPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  memberId  String
+  member    HubMember           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt DateTime            @default(now())
+
+  @@unique([pollId, memberId])
+  @@index([memberId])
+}
+
+model HubAvailabilitySelection {
+  id        String              @id @default(cuid())
+  pollId    String
+  poll      HubAvailabilityPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  memberId  String
+  member    HubMember           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  slotStart DateTime
+  createdAt DateTime            @default(now())
+
+  @@unique([pollId, memberId, slotStart])
+  @@index([pollId, slotStart])
+  @@index([memberId])
+}
+
+model HubMeetingDirectorate {
+  id            String         @id @default(cuid())
+  meetingId     String
+  meeting       HubMeeting     @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  directorateId String
+  directorate   HubDirectorate @relation(fields: [directorateId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+
+  @@unique([meetingId, directorateId])
+  @@index([directorateId])
+}
+
+model HubMeetingExternalGuest {
+  id        String     @id @default(cuid())
+  meetingId String
+  meeting   HubMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  name      String
+  email     String?
+  createdAt DateTime   @default(now())
+
+  @@index([meetingId])
+}
+
+model HubMeetingResponseEvent {
+  id             String                      @id @default(cuid())
+  organizationId String
+  organization   HubOrganization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  meetingId      String
+  meeting        HubMeeting                  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  memberId       String
+  member         HubMember                   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  eventId        String
+  status         HubMeetingParticipantStatus
+  createdAt      DateTime                    @default(now())
+
+  @@unique([organizationId, eventId])
+  @@index([meetingId, memberId, createdAt])
+}
+
+model HubMeetingParticipant {
+  id                String                       @id @default(cuid())
+  meetingId         String
+  meeting           HubMeeting                   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  memberId          String
+  member            HubMember                    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  responseStatus    HubMeetingParticipantStatus  @default(PENDING)
+  respondedAt       DateTime?
+  declineReason     String?
+  invitationVersion Int                          @default(1)
+  attendanceStatus  HubMeetingParticipantStatus?
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+
+  @@unique([meetingId, memberId])
+  @@index([memberId, responseStatus])
+}
+
+model HubMeetingParticipantSource {
+  id            String                         @id @default(cuid())
+  meetingId     String
+  memberId      String
+  sourceType    HubMeetingInvitationSourceType
+  directorateId String?
+  createdAt     DateTime                       @default(now())
+
+  @@unique([meetingId, memberId, sourceType, directorateId])
+  @@index([meetingId, memberId])
+  @@index([directorateId])
+}
+
+model HubMeetingAgendaItem {
+  id                String     @id @default(cuid())
+  meetingId         String
+  meeting           HubMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  title             String
+  description       String?
+  order             Int
+  estimatedMinutes  Int?
+  presenterMemberId String?
+  presenter         HubMember? @relation("HubAgendaPresenter", fields: [presenterMemberId], references: [id])
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@unique([meetingId, order])
+  @@index([presenterMemberId])
+}
+
+model HubMeetingDecision {
+  id          String     @id @default(cuid())
+  meetingId   String
+  meeting     HubMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  decidedAt   DateTime   @default(now())
+  createdById String
+  createdBy   HubMember  @relation("HubDecisionCreator", fields: [createdById], references: [id])
+  createdAt   DateTime   @default(now())
+
+  @@index([meetingId, decidedAt])
+}
+
+enum HubBoardScope {
+  ORGANIZATION
+  DIRECTORATE
+}
+
+enum HubTaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model HubBoard {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   HubOrganization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  directorateId  String?
+  directorate    HubDirectorate?  @relation(fields: [directorateId], references: [id], onDelete: SetNull)
+  name           String
+  description    String?
+  scope          HubBoardScope
+  isArchived     Boolean          @default(false)
+  createdById    String
+  createdBy      HubMember        @relation("HubBoardCreator", fields: [createdById], references: [id])
+  columns        HubBoardColumn[]
+  tasks          HubTask[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([organizationId, isArchived])
+  @@index([directorateId])
+}
+
+model HubBoardColumn {
+  id           String    @id @default(cuid())
+  boardId      String
+  board        HubBoard  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  name         String
+  order        Int
+  isDoneColumn Boolean   @default(false)
+  isArchived   Boolean   @default(false)
+  tasks        HubTask[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([boardId, order])
+  @@index([boardId, isArchived])
+}
+
+model HubTask {
+  id              String                 @id @default(cuid())
+  organizationId  String
+  organization    HubOrganization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  boardId         String
+  board           HubBoard               @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  columnId        String
+  column          HubBoardColumn         @relation(fields: [columnId], references: [id])
+  sourceMeetingId String?
+  sourceMeeting   HubMeeting?            @relation(fields: [sourceMeetingId], references: [id], onDelete: SetNull)
+  directorateId   String?
+  directorate     HubDirectorate?        @relation(fields: [directorateId], references: [id], onDelete: SetNull)
+  projectId       String?
+  project         HubProject?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  title           String
+  description     String?
+  priority        HubTaskPriority        @default(NORMAL)
+  status          String                 @default("TODO")
+  dueAt           DateTime?
+  position        Int
+  version         Int                    @default(1)
+  createdById     String
+  createdBy       HubMember              @relation("HubTaskCreator", fields: [createdById], references: [id])
+  completedAt     DateTime?
+  archivedAt      DateTime?
+  idempotencyKey  String
+  requestHash     String?
+  assignees       HubTaskAssignee[]
+  comments        HubTaskComment[]
+  checklistItems  HubTaskChecklistItem[]
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, dueAt])
+  @@index([boardId, columnId, position])
+  @@index([sourceMeetingId])
+  @@index([directorateId, status])
+  @@index([projectId, status])
+}
+
+enum HubCalendarEventType {
+  MANUAL
+  MEETING
+  TASK_DEADLINE
+  PROJECT_DEADLINE
+  MILESTONE
+}
+
+model HubCalendarEvent {
+  id             String               @id @default(cuid())
+  organizationId String
+  organization   HubOrganization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  type           HubCalendarEventType @default(MANUAL)
+  title          String
+  description    String?
+  startAt        DateTime
+  endAt          DateTime
+  allDay         Boolean              @default(false)
+  timezone       String
+  location       String?
+  directorateId  String?
+  directorate    HubDirectorate?      @relation(fields: [directorateId], references: [id], onDelete: SetNull)
+  projectId      String?
+  project        HubProject?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  meetingId      String?
+  meeting        HubMeeting?          @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  createdById    String
+  createdBy      HubMember            @relation("HubCalendarEventCreator", fields: [createdById], references: [id])
+  version        Int                  @default(1)
+  archivedAt     DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([organizationId, startAt])
+  @@index([directorateId, startAt])
+  @@index([projectId])
+  @@index([meetingId])
+}
+
+model HubTaskAssignee {
+  id         String    @id @default(cuid())
+  taskId     String
+  task       HubTask   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  memberId   String
+  member     HubMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  assignedAt DateTime  @default(now())
+
+  @@unique([taskId, memberId])
+  @@index([memberId])
+}
+
+model HubTaskComment {
+  id        String    @id @default(cuid())
+  taskId    String
+  task      HubTask   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    HubMember @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([taskId, createdAt])
+  @@index([authorId])
+}
+
+model HubTaskChecklistItem {
+  id          String   @id @default(cuid())
+  taskId      String
+  task        HubTask  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  title       String
+  order       Int
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([taskId, order])
+}
+
+enum HubFinancialCategoryType {
+  INCOME
+  EXPENSE
+  BOTH
+}
+
+enum HubCounterpartyType {
+  CUSTOMER
+  SUPPLIER
+  BOTH
+  OTHER
+}
+
+enum HubFinancialEntryDirection {
+  PAYABLE
+  RECEIVABLE
+}
+
+enum HubFinancialEntryStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  PARTIALLY_SETTLED
+  SETTLED
+  REJECTED
+  CANCELLED
+}
+
+enum HubFinancialInstallmentStatus {
+  OPEN
+  PARTIALLY_SETTLED
+  SETTLED
+  CANCELLED
+}
+
+enum HubSettlementMethod {
+  PIX
+  BANK_TRANSFER
+  CASH
+  CARD
+  BOLETO
+  OTHER
+}
+
+enum HubFinancialPeriodStatus {
+  OPEN
+  CLOSED
+}
+
+enum HubBudgetStatus {
+  DRAFT
+  APPROVED
+  ARCHIVED
+}
+
+enum HubReimbursementStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  PAID
+  CANCELLED
+}
+
+model HubFinancialCategory {
+  id             String                   @id @default(cuid())
+  organizationId String
+  name           String
+  normalizedName String
+  type           HubFinancialCategoryType
+  parentId       String?
+  isActive       Boolean                  @default(true)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@unique([organizationId, normalizedName])
+  @@index([organizationId, type, isActive])
+  @@index([parentId])
+}
+
+model HubCostCenter {
+  id             String   @id @default(cuid())
+  organizationId String
+  directorateId  String?
+  name           String
+  normalizedName String
+  code           String
+  normalizedCode String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, normalizedCode])
+  @@index([organizationId, isActive])
+  @@index([directorateId])
+}
+
+model HubCounterparty {
+  id                 String              @id @default(cuid())
+  organizationId     String
+  type               HubCounterpartyType
+  name               String
+  normalizedName     String
+  document           String?
+  normalizedDocument String?
+  email              String?
+  normalizedEmail    String?
+  phone              String?
+  notes              String?
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([organizationId, normalizedName])
+  @@index([organizationId, normalizedDocument])
+  @@index([organizationId, normalizedEmail])
+}
+
+model HubFinancialEntry {
+  id                 String                     @id @default(cuid())
+  organizationId     String
+  direction          HubFinancialEntryDirection
+  status             HubFinancialEntryStatus    @default(DRAFT)
+  description        String
+  categoryId         String
+  costCenterId       String?
+  directorateId      String?
+  directorate        HubDirectorate?            @relation(fields: [directorateId], references: [id], onDelete: SetNull)
+  counterpartyId     String?
+  projectId          String?
+  project            HubProject?                @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  issueDate          DateTime                   @db.Date
+  competenceDate     DateTime                   @db.Date
+  totalCents         Int
+  currency           String
+  createdById        String
+  submittedAt        DateTime?
+  submittedById      String?
+  approvedAt         DateTime?
+  approvedById       String?
+  rejectedAt         DateTime?
+  rejectedById       String?
+  rejectionReason    String?
+  cancelledAt        DateTime?
+  cancelledById      String?
+  cancellationReason String?
+  idempotencyKey     String
+  requestHash        String
+  supportingMetadata Json?
+  version            Int                        @default(1)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, status, competenceDate])
+  @@index([organizationId, direction, issueDate])
+  @@index([categoryId])
+  @@index([costCenterId])
+  @@index([directorateId])
+  @@index([counterpartyId])
+  @@index([projectId])
+}
+
+model HubFinancialInstallment {
+  id             String                        @id @default(cuid())
+  organizationId String
+  entryId        String
+  number         Int
+  amountCents    Int
+  dueDate        DateTime                      @db.Date
+  status         HubFinancialInstallmentStatus @default(OPEN)
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
+
+  @@unique([entryId, number])
+  @@index([organizationId, dueDate, status])
+}
+
+model HubFinancialSettlement {
+  id             String              @id @default(cuid())
+  organizationId String
+  entryId        String
+  installmentId  String
+  amountCents    Int
+  settledAt      DateTime
+  method         HubSettlementMethod
+  reference      String?
+  createdById    String
+  reversedAt     DateTime?
+  reversedById   String?
+  reversalReason String?
+  idempotencyKey String
+  requestHash    String
+  createdAt      DateTime            @default(now())
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, settledAt])
+  @@index([entryId, reversedAt])
+  @@index([installmentId, reversedAt])
+}
+
+model HubFinancialPeriod {
+  id             String                   @id @default(cuid())
+  organizationId String
+  year           Int
+  month          Int
+  status         HubFinancialPeriodStatus @default(OPEN)
+  closedAt       DateTime?
+  closedById     String?
+  reopenedAt     DateTime?
+  reopenedById   String?
+  reopenReason   String?
+  version        Int                      @default(1)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@unique([organizationId, year, month])
+  @@index([organizationId, status])
+}
+
+model HubBudget {
+  id             String          @id @default(cuid())
+  organizationId String
+  name           String
+  year           Int
+  status         HubBudgetStatus @default(DRAFT)
+  revision       Int             @default(1)
+  createdById    String
+  approvedAt     DateTime?
+  approvedById   String?
+  archivedAt     DateTime?
+  archivedById   String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([organizationId, year, name, revision])
+  @@index([organizationId, year, status])
+}
+
+model HubBudgetLine {
+  id             String   @id @default(cuid())
+  organizationId String
+  budgetId       String
+  categoryId     String
+  costCenterId   String?
+  month          Int
+  plannedCents   Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([budgetId, categoryId, costCenterId, month])
+  @@index([organizationId, month])
+}
+
+model HubReimbursementRequest {
+  id                String                 @id @default(cuid())
+  organizationId    String
+  requesterMemberId String
+  description       String
+  status            HubReimbursementStatus @default(DRAFT)
+  totalCents        Int
+  currency          String
+  costCenterId      String?
+  submittedAt       DateTime?
+  reviewedAt        DateTime?
+  reviewedById      String?
+  rejectionReason   String?
+  paidAt            DateTime?
+  financialEntryId  String?
+  idempotencyKey    String
+  requestHash       String
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, status, createdAt])
+  @@index([requesterMemberId, status])
+}
+
+model HubReimbursementItem {
+  id               String   @id @default(cuid())
+  organizationId   String
+  requestId        String
+  description      String
+  expenseDate      DateTime @db.Date
+  amountCents      Int
+  categoryId       String
+  receiptReference String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([organizationId, requestId])
 }

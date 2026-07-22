@@ -1,19 +1,5 @@
-# Security Policy
+# Política de segurança
 
-Please report vulnerabilities privately by opening a GitHub security advisory when available, or by contacting the maintainers through the repository owner.
+Não publique vulnerabilidades em issues. Use o recurso privado de Security Advisories do GitHub. Informe versão, impacto, reprodução mínima e mitigação sugerida, sem anexar credenciais ou dados pessoais.
 
-Do not open public issues containing:
-
-- credentials or tokens;
-- private event datasets;
-- personally identifiable information;
-- exploit details that could harm deployed instances.
-
-The project is an MVP and should not be deployed with sensitive production data without an independent security review.
-
-## Deployment practices
-
-- Use environment variables for database URLs and deployment configuration.
-- Do not commit production databases, exports, respondent lists, or logs.
-- Review hosting, backup, and retention policies before collecting real responses.
-- Prefer anonymous questionnaires unless a documented use case requires identification.
+São especialmente sensíveis: fuga entre organizações, bypass de autorização, tokens de convite, cookies de sessão, elevação de Presidência e alterações financeiras. Operadores devem manter Node, PostgreSQL e dependências atualizados, usar HTTPS, rotacionar `AUTH_SECRET` com planejamento e manter backups testados.

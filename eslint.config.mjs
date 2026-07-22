@@ -5,6 +5,14 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    rules: {
+      // Data-loading effects intentionally synchronize client views with HTTP APIs.
+      "react-hooks/set-state-in-effect": "off",
+      // useHubResource accepts caller-provided dependency tuples by design.
+      "react-hooks/use-memo": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

@@ -1,0 +1,6 @@
+import { prisma } from "@/lib/prisma";
+import { requireHubPermission } from "@/lib/hub/auth";
+import { HubApiError, hubJson, withHubApi } from "@/lib/hub/api";
+import { createMeetingActionItems } from "@/lib/hub/meeting-service";
+type Context = { params: Promise<{ id: string }> };
+export const POST = withHubApi<Context>(async (request, context) => { const session = await requireHubPermission("collaboration:access"); const { id } = await context.params; const body = await request.json().catch(() => null) as { items?: unknown } | null; if (!Array.isArray(body?.items)) throw new HubApiError("Ações obrigatórias.", 400); const items = body.items.map((value) => value && typeof value === "object" ? value as Record<string, unknown> : {}).map((item) => ({ title: String(item.title || ""), description: typeof item.description === "string" ? item.description : null, responsibleMemberId: typeof item.responsibleMemberId === "string" ? item.responsibleMemberId : null, directorateId: typeof item.directorateId === "string" ? item.directorateId : null, projectId: typeof item.projectId === "string" ? item.projectId : null, dueAt: typeof item.dueAt === "string" ? new Date(item.dueAt) : null })); return hubJson({ tasks: await createMeetingActionItems(prisma, session, id, items) }, { status: 201 }); });

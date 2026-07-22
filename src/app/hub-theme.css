@@ -1,0 +1,33 @@
+.hub-theme {
+  --hub-background: #fafafa;
+  --hub-foreground: #18181b;
+  --hub-card: #ffffff;
+  --hub-muted: #f4f4f5;
+  --hub-muted-foreground: #71717a;
+  --hub-border: #e4e4e7;
+  --hub-primary: #18181b;
+  --hub-primary-foreground: #ffffff;
+  --hub-radius: 0.9rem;
+  --hub-sidebar: #ffffff;
+  background: var(--hub-background);
+  color: var(--hub-foreground);
+  font-family: var(--hub-font-sans), sans-serif;
+}
+
+.hub-theme .font-display,
+.hub-theme .hub-display {
+  font-family: var(--hub-font-sans), sans-serif;
+}
+
+.hub-theme .font-mono,
+.hub-theme .hub-mono {
+  font-family: var(--hub-font-mono), monospace;
+}
+
+.hub-theme :is(button, input, textarea, select) {
+  font-family: inherit;
+}
+
+.hub-theme :focus-visible {
+  outline-color: var(--hub-primary);
+}
